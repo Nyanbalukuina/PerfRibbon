@@ -26,7 +26,7 @@ fun showOverlay() {
 
     // 黒背景・白文字の一行表示を作る
     val label = JLabel(
-        "■ゲームFPS：--｜■表示FPS：--｜■GPU：--%、--°｜■CPU：--%｜■RAM：--%"
+        "■ゲームFPS：--｜■表示FPS：--｜■GPU：--%、--℃｜■CPU：--%｜■RAM：--%"
     )
     label.foreground = Color.WHITE
     label.font = Font(Font.SANS_SERIF, Font.PLAIN, 12)
@@ -45,7 +45,7 @@ fun showOverlay() {
     fun updateDisplay(system: SystemMetrics, gpu: GpuMetrics) {
         // 取得できなかった値は「--」にする
         val gpuUsage = gpu.usagePercent?.let { "$it%" } ?: "--%"
-        val gpuTemperature = gpu.temperatureC?.let { "$it°" } ?: "--°"
+        val gpuTemperature = gpu.temperatureC?.let { "$it℃" } ?: "--℃"
         val cpu = system.cpuPercent?.let { "$it%" } ?: "--%"
         val ram = system.ramPercent?.let { "$it%" } ?: "--%"
 
