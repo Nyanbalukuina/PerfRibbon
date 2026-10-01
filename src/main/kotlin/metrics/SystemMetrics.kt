@@ -1,4 +1,4 @@
-package org.example
+package org.perfribbon.metrics
 
 import com.sun.management.OperatingSystemMXBean
 import java.lang.management.ManagementFactory

@@ -4,7 +4,7 @@ plugins {
     application
 }
 
-group = "org.example"
+group = "org.perfribbon"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -25,5 +25,5 @@ tasks.test {
 }
 
 application {
-    mainClass.set("org.example.MainKt")
+    mainClass.set("org.perfribbon.MainKt")
 }

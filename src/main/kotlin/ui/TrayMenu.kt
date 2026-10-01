@@ -1,4 +1,4 @@
-package org.example
+package org.perfribbon.ui
 
 import java.awt.Color
 import java.awt.Font
