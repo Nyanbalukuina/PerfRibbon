@@ -1,6 +1,8 @@
 package org.perfribbon.ui
 
 import org.perfribbon.metrics.GpuMetrics
+import org.perfribbon.metrics.FpsMetrics
+import org.perfribbon.metrics.PresentMonFpsProvider
 import org.perfribbon.metrics.SystemMetrics
 import org.perfribbon.metrics.detectSoleGpuProvider
 import org.perfribbon.platform.windows.enableClickThrough
@@ -17,7 +19,7 @@ import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.border.EmptyBorder
 
-fun showOverlay() {
+fun showOverlay(fpsProcessId: Int? = null) {
     // 枠のない、常に最前面に表示する窓を作る
     val frame = JFrame("PerfRibbon")
     frame.isUndecorated = true
@@ -37,12 +39,12 @@ fun showOverlay() {
     panel.add(label, BorderLayout.CENTER)
     frame.contentPane = panel
 
-    // タスクバーを除いた画面の範囲を取得する
+    // タスクバーを含むメイン画面全体の範囲を取得する
     val area = GraphicsEnvironment
         .getLocalGraphicsEnvironment()
-        .maximumWindowBounds
+        .defaultScreenDevice.defaultConfiguration.bounds
 
-    fun updateDisplay(system: SystemMetrics, gpu: GpuMetrics) {
+    fun updateDisplay(system: SystemMetrics, gpu: GpuMetrics, fps: FpsMetrics) {
         // 取得できなかった値は「--」にする
         val gpuUsage = gpu.usagePercent?.let { "$it%" } ?: "--%"
         val gpuTemperature = gpu.temperatureC?.let { "$it℃" } ?: "--℃"
@@ -51,9 +53,9 @@ fun showOverlay() {
 
         // 決めた一行の形式で表示する
         label.text =
-            "■ゲームFPS：--｜■表示FPS：--｜■GPU：$gpuUsage,$gpuTemperature｜■CPU：$cpu｜■RAM：$ram"
+            "■ゲームFPS：${fps.gameFps ?: "--"}｜■表示FPS：${fps.displayedFps ?: "--"}｜■GPU：$gpuUsage,$gpuTemperature｜■CPU：$cpu｜■RAM：$ram"
 
-        // 文字幅に窓を合わせ、タスクバーのすぐ上に配置する
+        // 文字幅に窓を合わせ、画面の最下端に配置する
         frame.pack()
         frame.setLocation(area.x, area.y + area.height - frame.height)
     }
@@ -65,7 +67,8 @@ fun showOverlay() {
     enableClickThrough(frame)
 
     // 通知領域に終了用のアイコンを登録する
-    installTrayMenu(frame)
+    val fpsProvider = PresentMonFpsProvider(fpsProcessId)
+    installTrayMenu(frame) { fpsProvider.status }
 
     // 値の取得は画面とは別のスレッドで行う
     val sampler = Executors.newSingleThreadScheduledExecutor { task ->
@@ -75,15 +78,21 @@ fun showOverlay() {
     sampler.execute {
         // 起動時に利用可能なGPU取得方法を選ぶ
         val gpuProvider = detectSoleGpuProvider()
+        Runtime.getRuntime().addShutdownHook(Thread({
+            sampler.shutdownNow()
+            try { fpsProvider.close() } finally { gpuProvider?.close() }
+        }, "PerfRibbon-cleanup"))
+        fpsProvider.start()
 
         // CPU・RAM・GPUの値を約1秒ごとに取得する
         sampler.scheduleAtFixedRate({
+            val fps = fpsProvider.read()
             val system = readSystemMetrics()
             val gpu = gpuProvider?.read() ?: GpuMetrics(null, null)
 
             // 取得結果をSwingの画面処理へ渡す
             SwingUtilities.invokeLater {
-                updateDisplay(system, gpu)
+                updateDisplay(system, gpu, fps)
             }
         }, 0, 1, TimeUnit.SECONDS)
     }

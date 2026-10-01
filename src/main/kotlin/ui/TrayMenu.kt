@@ -9,8 +9,9 @@ import java.awt.TrayIcon
 import java.awt.image.BufferedImage
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
+import javax.swing.JOptionPane
 
-fun installTrayMenu(frame: JFrame) {
+fun installTrayMenu(frame: JFrame, fpsStatus: () -> String = { "FPS未対応" }) {
     // Windowsの通知領域が利用できるか確認する
     check(SystemTray.isSupported()) {
         "この環境では通知領域を利用できません"
@@ -41,6 +42,13 @@ fun installTrayMenu(frame: JFrame) {
 
     // 右クリックメニューに「終了」を追加する
     val menu = PopupMenu()
+    val fpsStatusItem = MenuItem("FPSの計測状態")
+    fpsStatusItem.addActionListener {
+        SwingUtilities.invokeLater {
+            JOptionPane.showMessageDialog(null, fpsStatus(), "PerfRibbon — FPS", JOptionPane.INFORMATION_MESSAGE)
+        }
+    }
+    menu.add(fpsStatusItem)
     val exitItem = MenuItem("終了")
     menu.add(exitItem)
     val trayIcon = TrayIcon(image, "PerfRibbon", menu)
