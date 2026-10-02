@@ -60,6 +60,12 @@ try {
 
     # 説明書とPresentMonのライセンス通知を配布物に添える
     Copy-Item -LiteralPath "README.md" -Destination $appDir
+    # 日本語版の説明書も配布フォルダーへコピーする
+    Copy-Item -LiteralPath "README.ja.md" -Destination $appDir
+    # 説明書に掲載するスクリーンショットを同梱する
+    Copy-Item -LiteralPath "ribbon.png", "menu.png" -Destination $appDir
+    # PerfRibbon自身のライセンスを配布フォルダーへコピーする
+    Copy-Item -LiteralPath "LICENSE" -Destination $appDir
     $licenseDir = Join-Path $appDir "licenses\PresentMon"
     New-Item -ItemType Directory -Path $licenseDir -Force | Out-Null
     Copy-Item -LiteralPath "src\main\resources\presentmon\LICENSE.txt" `
