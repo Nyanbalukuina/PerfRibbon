@@ -2,8 +2,13 @@ import java.net.URI
 import java.security.MessageDigest
 
 plugins {
+    // KotlinをJVM向けにコンパイルする
     kotlin("jvm") version "2.4.0"
 
+    // 設定クラスの変換コードを生成する
+    kotlin("plugin.serialization") version "2.4.0"
+
+    // アプリの起動タスクを提供する
     application
 }
 
@@ -15,7 +20,13 @@ repositories {
 }
 
 dependencies {
+    // WindowsのAPIを呼び出すためのライブラリ
     implementation("net.java.dev.jna:jna-platform:5.19.1")
+
+    // KotlinのオブジェクトとJSONを相互変換する
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+
+    // 自動テストに使うライブラリ
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

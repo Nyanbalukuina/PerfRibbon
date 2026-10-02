@@ -9,9 +9,15 @@ import java.awt.TrayIcon
 import java.awt.image.BufferedImage
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
-import javax.swing.JOptionPane
+import java.awt.CheckboxMenuItem
 
-fun installTrayMenu(frame: JFrame, fpsStatus: () -> String = { "FPS未対応" }) {
+// 起動時の表示位置と、位置変更時に呼ぶ処理を受け取る
+fun installTrayMenu(
+    frame: JFrame,
+    fpsStatus: () -> String = { "FPS未対応" },
+    initialPosition: OverlayPosition,
+    onPositionChanged: (OverlayPosition) -> Unit
+) {
     // Windowsの通知領域が利用できるか確認する
     check(SystemTray.isSupported()) {
         "この環境では通知領域を利用できません"
@@ -40,16 +46,53 @@ fun installTrayMenu(frame: JFrame, fpsStatus: () -> String = { "FPS未対応" })
     )
     graphics.dispose()
 
-    // 右クリックメニューに「終了」を追加する
+    // 右クリックメニューを作る
     val menu = PopupMenu()
-    val fpsStatusItem = MenuItem("FPSの計測状態")
-    fpsStatusItem.addActionListener {
-        SwingUtilities.invokeLater {
-            JOptionPane.showMessageDialog(null, fpsStatus(), "PerfRibbon — FPS", JOptionPane.INFORMATION_MESSAGE)
-        }
+
+    // 操作できない見出しを追加する
+    val settingsHeading = MenuItem("■ Settings").apply {
+        isEnabled = false
     }
-    menu.add(fpsStatusItem)
-    val exitItem = MenuItem("終了")
+    val areaHeading = MenuItem("Menu Area").apply {
+        isEnabled = false
+    }
+    menu.add(settingsHeading)
+    menu.add(areaHeading)
+
+    // 各メニュー項目と、それが表す表示位置を組にする
+    // 表示名と、対応する表示位置を定義する
+    val positionOptions = listOf(
+        "Left-Top" to OverlayPosition.LEFT_TOP,
+        "Left-Bottom" to OverlayPosition.LEFT_BOTTOM,
+        "Right-Top" to OverlayPosition.RIGHT_TOP,
+        "Right-Bottom" to OverlayPosition.RIGHT_BOTTOM
+    )
+
+    // 保存から読み込んだ位置にチェックを付ける
+    val positionItems = positionOptions.map { (label, position) ->
+        CheckboxMenuItem(
+            label,
+            position == initialPosition
+        ) to position
+    }
+
+    // チェックを1つにそろえ、選んだ位置を表示側へ通知する
+    positionItems.forEach { (selectedItem, position) ->
+        selectedItem.addItemListener {
+            positionItems.forEach { (item, _) ->
+                item.state = item === selectedItem
+            }
+
+            SwingUtilities.invokeLater {
+                onPositionChanged(position)
+            }
+        }
+        menu.add(selectedItem)
+    }
+
+    // 区切り線と終了項目を追加する
+    menu.addSeparator()
+    val exitItem = MenuItem("Exit")
     menu.add(exitItem)
     val trayIcon = TrayIcon(image, "PerfRibbon", menu)
     trayIcon.isImageAutoSize = true

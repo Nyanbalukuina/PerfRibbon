@@ -1,6 +1,6 @@
 # PerfRibbon
 
-Windows向けのPC状態表示アプリ。画面左下にゲームFPS・表示FPS、CPU・RAM使用率とGPU使用率・温度を表示します。
+Windows向けのPC状態表示アプリ。メイン画面の左上にゲームFPS・表示FPS、CPU・RAM使用率とGPU使用率・温度を表示します。
 
 ## 起動
 

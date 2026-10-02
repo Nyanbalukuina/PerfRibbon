@@ -18,12 +18,15 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.border.EmptyBorder
+import java.io.IOException
+import javax.swing.JOptionPane
 
 fun showOverlay(fpsProcessId: Int? = null) {
     // 枠のない、常に最前面に表示する窓を作る
     val frame = JFrame("PerfRibbon")
     frame.isUndecorated = true
     frame.isAlwaysOnTop = true
+    frame.focusableWindowState = false
     frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
 
     // 黒背景・白文字の一行表示を作る
@@ -44,6 +47,30 @@ fun showOverlay(fpsProcessId: Int? = null) {
         .getLocalGraphicsEnvironment()
         .defaultScreenDevice.defaultConfiguration.bounds
 
+    // 現在選ばれている表示位置を保持する
+    // 保存した設定を読み込み、変更後の設定もここで保持する
+    var settings = SettingsStore.load()
+
+    // 読み込んだ表示位置を、配置処理で使う
+    var currentPosition = settings.position
+
+    // 選択中の位置と現在の窓サイズから、配置座標を計算する
+    fun applyPosition() {
+        val left = area.x
+        val right = area.x + area.width - frame.width
+        val top = area.y
+        val bottom = area.y + area.height - frame.height
+
+        val (x, y) = when (currentPosition) {
+            OverlayPosition.LEFT_TOP -> left to top
+            OverlayPosition.LEFT_BOTTOM -> left to bottom
+            OverlayPosition.RIGHT_TOP -> right to top
+            OverlayPosition.RIGHT_BOTTOM -> right to bottom
+        }
+
+        frame.setLocation(x, y)
+    }
+
     fun updateDisplay(system: SystemMetrics, gpu: GpuMetrics, fps: FpsMetrics) {
         // 取得できなかった値は「--」にする
         val gpuUsage = gpu.usagePercent?.let { "$it%" } ?: "--%"
@@ -55,20 +82,48 @@ fun showOverlay(fpsProcessId: Int? = null) {
         label.text =
             "■ゲームFPS：${fps.gameFps ?: "--"}｜■表示FPS：${fps.displayedFps ?: "--"}｜■GPU：$gpuUsage,$gpuTemperature｜■CPU：$cpu｜■RAM：$ram"
 
-        // 文字幅に窓を合わせ、画面の最下端に配置する
+        // 文字幅に窓を合わせ、メイン画面の左上に配置する
         frame.pack()
-        frame.setLocation(area.x, area.y + area.height - frame.height)
+        // 窓のサイズに合わせて、選択中の位置へ配置する
+        applyPosition()
     }
 
     // 窓を表示し、クリックを背後へ通す
     frame.pack()
-    frame.setLocation(area.x, area.y + area.height - frame.height)
+    // 窓のサイズに合わせて、選択中の位置へ配置する
+    applyPosition()
     frame.isVisible = true
     enableClickThrough(frame)
 
     // 通知領域に終了用のアイコンを登録する
     val fpsProvider = PresentMonFpsProvider(fpsProcessId)
-    installTrayMenu(frame) { fpsProvider.status }
+    // メニューで選んだ位置を保持し、すぐにリボンを移動する
+    // 起動時の位置をメニューに渡し、位置変更時に表示と保存を更新する
+    installTrayMenu(
+        frame = frame,
+        fpsStatus = { fpsProvider.status },
+        initialPosition = currentPosition,
+        onPositionChanged = { position ->
+            // 選択した位置を反映し、リボンを移動する
+            currentPosition = position
+            applyPosition()
+
+            // 表示位置だけを変更した、新しい設定を作る
+            settings = settings.copy(position = position)
+
+            // 設定を保存し、失敗した場合は英語のメッセージで知らせる
+            try {
+                SettingsStore.save(settings)
+            } catch (exception: IOException) {
+                JOptionPane.showMessageDialog(
+                    frame,
+                    "Could not save settings.",
+                    "PerfRibbon",
+                    JOptionPane.ERROR_MESSAGE
+                )
+            }
+        }
+    )
 
     // 値の取得は画面とは別のスレッドで行う
     val sampler = Executors.newSingleThreadScheduledExecutor { task ->
